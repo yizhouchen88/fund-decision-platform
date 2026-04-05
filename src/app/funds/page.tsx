@@ -56,12 +56,17 @@ export default async function FundsSearchPage({ searchParams }: SearchPageProps)
                         <h2 className="fund-card__title">{item.name}</h2>
                       </Link>
                       <div className="fund-card__meta">
-                        {item.code} · {item.type} · {item.theme} · 更新于 {formatDate(item.updatedAt)}
+                        {item.code} · {item.type} · {item.theme} · {item.matchReason} · 更新于 {formatDate(item.updatedAt)}
                       </div>
                     </div>
                     <Link className="button secondary" href={`/funds/${item.code}`}>
-                      查看详情
+                      {item.canViewDetail ? "查看详情" : "仅查看基础信息"}
                     </Link>
+                  </div>
+
+                  <div className="badge-row">
+                    <span className="tag">相关性 {item.relevanceScore}</span>
+                    <span className="tag">{item.hasLocalData ? "本地已同步完整数据" : "可进入详情页补齐数据"}</span>
                   </div>
 
                   <div className="info-grid">
@@ -128,6 +133,11 @@ export default async function FundsSearchPage({ searchParams }: SearchPageProps)
                       <div className="info-item__value">{item.styleExposure}</div>
                     </div>
                   </div>
+                  {!metrics ? (
+                    <div className="empty-state" style={{ minHeight: "auto", padding: 14 }}>
+                      当前只有基础信息，点击详情页后会自动尝试同步更完整的净值与分析数据。
+                    </div>
+                  ) : null}
                 </article>
               );
             })

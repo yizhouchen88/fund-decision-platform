@@ -8,20 +8,41 @@ type FundCardProps = {
   item: RecommendationItem;
 };
 
+function bucketClass(bucket: RecommendationItem["bucket"]) {
+  if (bucket === "红色区域：现在适合买") {
+    return "fund-card--buy-zone";
+  }
+
+  if (bucket === "适合分批买入") {
+    return "fund-card--batch-zone";
+  }
+
+  if (bucket === "继续观察") {
+    return "fund-card--watch-zone";
+  }
+
+  return "fund-card--risk-zone";
+}
+
 export function FundCard({ item }: FundCardProps) {
   return (
-    <article className="card fund-card">
+    <article className={`card fund-card ${bucketClass(item.bucket)}`}>
       <div className="fund-card__head">
         <div>
           <Link href={`/funds/${item.code}`}>
             <h3 className="fund-card__title">{item.name}</h3>
           </Link>
           <div className="fund-card__meta">
-            {item.code} · {item.theme} · 最新净值 {formatNumber(item.latestNav)} · 更新于{" "}
+            {item.code} · {item.type} · {item.theme} · 最新净值 {formatNumber(item.latestNav)} · 更新于{" "}
             {formatDate(item.latestNavDate)}
           </div>
         </div>
         <StatusChip value={item.decision} />
+      </div>
+
+      <div className="badge-row">
+        <span className="tag">{item.bucket}</span>
+        <span className="tag">建议动作：{item.suggestedAction}</span>
       </div>
 
       <div className="metric-grid">
@@ -47,6 +68,22 @@ export function FundCard({ item }: FundCardProps) {
           <li key={reason}>{reason}</li>
         ))}
       </ul>
+
+      <div className="card card--soft">
+        <div className="info-item__label">消息面辅助判断</div>
+        <div className="fund-card__desc" style={{ marginTop: 10 }}>
+          {item.messageImpact}
+        </div>
+      </div>
+
+      <div className="card card--soft">
+        <div className="info-item__label">风险提示</div>
+        <ul className="fund-card__list" style={{ marginTop: 10 }}>
+          {item.riskWarnings.slice(0, 2).map((warning) => (
+            <li key={warning}>{warning}</li>
+          ))}
+        </ul>
+      </div>
     </article>
   );
 }

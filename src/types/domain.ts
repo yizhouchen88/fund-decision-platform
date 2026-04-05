@@ -8,12 +8,10 @@ export type DecisionLabel =
   | "谨慎卖出";
 
 export type FundBucket =
-  | "今日重点观察"
-  | "当前趋势较优"
-  | "中长期布局方向"
-  | "防守型基金"
-  | "进攻型基金"
-  | "海外配置型基金";
+  | "红色区域：现在适合买"
+  | "适合分批买入"
+  | "继续观察"
+  | "谨慎 / 风险偏高";
 
 export interface FundSeed {
   code: string;
@@ -35,6 +33,13 @@ export interface FundOverview extends FundSeed {
   latestNavDate?: string;
   updatedAt: string;
   source: string;
+}
+
+export interface FundSearchResult extends FundOverview {
+  relevanceScore: number;
+  matchReason: string;
+  hasLocalData: boolean;
+  canViewDetail: boolean;
 }
 
 export interface NavPoint {
@@ -147,12 +152,17 @@ export interface RecommendationItem {
   bucket: FundBucket;
   code: string;
   name: string;
+  type: string;
   theme: string;
   score: ScoreBreakdown;
   latestNav?: number;
   latestNavDate?: string;
   reasons: string[];
+  riskWarnings: string[];
   decision: DecisionLabel;
+  suggestedAction: "分批买入" | "继续观察" | "暂不操作" | "继续持有";
+  messageImpact: string;
+  updatedAt: string;
 }
 
 export interface DashboardData {
@@ -187,4 +197,57 @@ export interface PortfolioAnalysis {
   takeProfitTriggered: boolean;
   riskAlertTriggered: boolean;
   suggestions: string[];
+}
+
+export interface PortfolioHoldingInput {
+  code: string;
+  name?: string;
+  buyCost: number;
+  holdingShares: number;
+  currentNav?: number;
+  investedAmount?: number;
+  fundPositionRatio?: number;
+}
+
+export interface PortfolioHoldingAnalysis {
+  code: string;
+  name: string;
+  type: string;
+  theme: string;
+  buyCost: number;
+  holdingShares: number;
+  currentNav: number;
+  investedAmount: number;
+  marketValue: number;
+  floatingPnL: number;
+  returnRate: number;
+  positionRatio: number;
+  positionRiskLevel: "低" | "中" | "高";
+  status: "适合继续持有" | "适合分批加仓" | "继续观察" | "风险偏高";
+  suggestedAction: "分批加仓" | "继续持有" | "继续观察" | "暂不操作";
+  addPositionTriggered: boolean;
+  takeProfitTriggered: boolean;
+  riskAlertTriggered: boolean;
+  reasons: string[];
+  riskWarnings: string[];
+  longTermFit: boolean;
+  lastUpdatedAt: string;
+}
+
+export interface PortfolioSummaryAnalysis {
+  totalInvested: number;
+  totalMarketValue: number;
+  floatingPnL: number;
+  returnRate: number;
+  overallStyle: "偏进攻" | "均衡" | "偏防守";
+  concentrationRisk: "低" | "中" | "高";
+  watchlist: string[];
+  coreHoldings: string[];
+  warnings: string[];
+  suggestions: string[];
+}
+
+export interface PortfolioCollectionAnalysis {
+  holdings: PortfolioHoldingAnalysis[];
+  summary: PortfolioSummaryAnalysis;
 }

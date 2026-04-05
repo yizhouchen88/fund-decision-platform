@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import { cleanNavSeries } from "@/lib/analysis/nav";
 import type {
   FundBucket,
   FundOverview,
@@ -63,6 +64,7 @@ export function upsertFund(overview: FundOverview) {
 
 export function replaceNavSeries(code: string, navSeries: NavPoint[]) {
   const db = getDb();
+  const cleanedSeries = cleanNavSeries(code, navSeries);
   const deleteStmt = db.prepare("DELETE FROM fund_nav WHERE code = ?");
   const insertStmt = db.prepare(`
     INSERT INTO fund_nav (code, trade_date, nav, accumulated_nav, daily_return)
@@ -72,7 +74,7 @@ export function replaceNavSeries(code: string, navSeries: NavPoint[]) {
   db.exec("BEGIN");
   try {
     deleteStmt.run(code);
-    for (const point of navSeries) {
+    for (const point of cleanedSeries) {
       insertStmt.run(
         code,
         point.date,
@@ -131,13 +133,16 @@ export function getNavSeries(code: string): NavPoint[] {
     )
     .all(code) as Array<Record<string, unknown>>;
 
-  return rows.map((row) => ({
-    code: String(row.code),
-    date: String(row.trade_date),
-    nav: Number(row.nav),
-    accumulatedNav: row.accumulated_nav ? Number(row.accumulated_nav) : undefined,
-    dailyReturn: row.daily_return === null ? undefined : Number(row.daily_return)
-  }));
+  return cleanNavSeries(
+    code,
+    rows.map((row) => ({
+      code: String(row.code),
+      date: String(row.trade_date),
+      nav: Number(row.nav),
+      accumulatedNav: row.accumulated_nav ? Number(row.accumulated_nav) : undefined,
+      dailyReturn: row.daily_return === null ? undefined : Number(row.daily_return)
+    }))
+  );
 }
 
 export function upsertNewsItems(items: NewsItem[]) {

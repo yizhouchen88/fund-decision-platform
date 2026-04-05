@@ -1,10 +1,11 @@
 import vm from "node:vm";
 
+import { cleanNavSeries } from "@/lib/analysis/nav";
 import { trackedFundSeeds } from "@/lib/data/seed-data";
 import { fetchText } from "@/lib/providers/http";
 import type { FundOverview, NavPoint } from "@/types/domain";
 
-type FundSearchEntry = {
+export type FundSearchEntry = {
   code: string;
   pinyin: string;
   name: string;
@@ -94,7 +95,7 @@ function normalizeNavSeries(
   if (Array.isArray(accWorthTrend)) {
     for (const item of accWorthTrend) {
       if (Array.isArray(item) && item.length >= 2) {
-        const date = new Date(Number(item[0])).toISOString().slice(0, 10);
+        const date = new Date(Number(item[0]) + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
         accumulatedMap.set(date, Number(item[1]));
       }
     }
@@ -112,7 +113,7 @@ function normalizeNavSeries(
         continue;
       }
 
-      const date = new Date(Number(raw.x)).toISOString().slice(0, 10);
+      const date = new Date(Number(raw.x) + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const dailyReturn =
         raw.equityReturn === undefined || raw.equityReturn === null
           ? undefined
@@ -127,7 +128,7 @@ function normalizeNavSeries(
       });
   }
 
-  return normalized.sort((a, b) => a.date.localeCompare(b.date));
+  return cleanNavSeries(code, normalized);
 }
 
 export async function searchFundsRemote(query: string, limit = 15): Promise<FundSearchEntry[]> {

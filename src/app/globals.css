@@ -299,10 +299,9 @@ input {
   font-weight: 700;
 }
 
-.status-chip.buy,
-.status-chip.hold {
-  color: var(--success);
-  background: rgba(23, 110, 77, 0.12);
+.status-chip.zone-buy {
+  color: #9f3138;
+  background: rgba(166, 63, 67, 0.14);
 }
 
 .status-chip.watch {
@@ -310,14 +309,52 @@ input {
   background: rgba(154, 101, 0, 0.12);
 }
 
-.status-chip.sell {
+.status-chip.positive {
+  color: var(--success);
+  background: rgba(23, 110, 77, 0.12);
+}
+
+.status-chip.risk {
+  color: #eef2f6;
+  background: rgba(24, 33, 39, 0.86);
+}
+
+.status-chip.neutral {
   color: var(--danger);
-  background: rgba(166, 63, 67, 0.12);
+  background: rgba(84, 97, 107, 0.14);
 }
 
 .fund-card {
   display: grid;
   gap: 18px;
+}
+
+.fund-card--buy-zone {
+  border-color: rgba(166, 63, 67, 0.2);
+  background:
+    linear-gradient(180deg, rgba(255, 247, 247, 0.96), rgba(255, 252, 249, 0.92)),
+    var(--surface);
+}
+
+.fund-card--batch-zone {
+  border-color: rgba(204, 120, 72, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 248, 239, 0.96), rgba(255, 252, 246, 0.92)),
+    var(--surface);
+}
+
+.fund-card--watch-zone {
+  border-color: rgba(168, 109, 45, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 251, 235, 0.96), rgba(255, 252, 246, 0.92)),
+    var(--surface);
+}
+
+.fund-card--risk-zone {
+  border-color: rgba(24, 33, 39, 0.18);
+  background:
+    linear-gradient(180deg, rgba(235, 239, 243, 0.9), rgba(248, 249, 250, 0.92)),
+    var(--surface);
 }
 
 .fund-card__head {
@@ -471,6 +508,143 @@ input {
   background: rgba(255, 255, 255, 0.82);
 }
 
+.field textarea,
+.inline-input {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.82);
+  font: inherit;
+  color: var(--ink);
+}
+
+.inline-input {
+  width: 140px;
+}
+
+.empty-state {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 24px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.54);
+  border: 1px dashed rgba(24, 33, 39, 0.16);
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+
+.search-results {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.search-result {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(24, 33, 39, 0.08);
+  background: rgba(255, 255, 255, 0.8);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.portfolio-panel,
+.portfolio-result {
+  gap: 18px;
+}
+
+.decision-zone {
+  padding: 28px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+}
+
+.decision-zone--buy {
+  background:
+    linear-gradient(135deg, rgba(188, 64, 72, 0.12), rgba(255, 243, 243, 0.94)),
+    var(--surface);
+  border-color: rgba(166, 63, 67, 0.2);
+}
+
+.decision-zone--watch {
+  background:
+    linear-gradient(135deg, rgba(194, 144, 43, 0.12), rgba(255, 250, 239, 0.94)),
+    var(--surface);
+  border-color: rgba(168, 109, 45, 0.2);
+}
+
+.decision-zone--hold {
+  background:
+    linear-gradient(135deg, rgba(27, 98, 91, 0.12), rgba(245, 253, 250, 0.94)),
+    var(--surface);
+  border-color: rgba(27, 98, 91, 0.18);
+}
+
+.decision-zone--risk {
+  background:
+    linear-gradient(135deg, rgba(24, 33, 39, 0.12), rgba(241, 244, 247, 0.94)),
+    var(--surface);
+  border-color: rgba(24, 33, 39, 0.16);
+}
+
+.decision-zone__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.decision-zone__head h2 {
+  margin: 12px 0 0;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-family: "Baskerville", "Songti SC", "STSong", serif;
+}
+
+.decision-zone__head p {
+  margin: 12px 0 0;
+  max-width: 760px;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+
+.zone {
+  position: relative;
+  overflow: hidden;
+}
+
+.zone::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 8px;
+}
+
+.zone--buy::before {
+  background: linear-gradient(180deg, #be4d54, #d88c7d);
+}
+
+.zone--batch::before {
+  background: linear-gradient(180deg, #cf7c42, #dfaa58);
+}
+
+.zone--watch::before {
+  background: linear-gradient(180deg, #b48b2b, #d5bb63);
+}
+
+.zone--risk::before {
+  background: linear-gradient(180deg, #263038, #5c6972);
+}
+
 .site-footer {
   max-width: var(--max-width);
   margin: 0 auto;
@@ -507,5 +681,15 @@ input {
   .risk-strip {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .decision-zone {
+    padding: 22px;
+  }
+
+  .decision-zone__head,
+  .search-result {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

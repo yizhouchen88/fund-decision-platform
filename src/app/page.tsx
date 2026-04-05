@@ -71,7 +71,7 @@ export default function HomePage() {
       <div className="grid cols-2">
         <SectionCard
           title="当前重点关注基金"
-          description="偏向中长期布局，不追求短线噪音里的“神基”。"
+          description="优先展示更接近分批布局区间的基金，默认服务于长期投资者，不鼓励追高。"
           action={
             <Link className="button secondary" href="/recommendations">
               查看完整推荐
@@ -87,7 +87,7 @@ export default function HomePage() {
 
         <SectionCard
           title="最新信号"
-          description="所有信号都必须能解释依据，新闻仅作为辅助因子。"
+          description="信号改为当前状态分区，消息面只做辅助，不会单独触发买卖。"
         >
           <div className="grid">
             {dashboard.latestSignals.map((item) => (
@@ -100,6 +100,10 @@ export default function HomePage() {
                     <div className="fund-card__meta">{item.code} · {item.theme}</div>
                   </div>
                   <StatusChip value={item.decision} />
+                </div>
+                <div className="badge-row">
+                  <span className="tag">{item.bucket}</span>
+                  <span className="tag">{item.suggestedAction}</span>
                 </div>
                 <ul className="fund-card__list">
                   {item.reasons.slice(0, 2).map((reason) => (

@@ -1,3 +1,4 @@
+import { periodReturn } from "@/lib/analysis/indicators";
 import { buildFundAnalysis } from "@/lib/analysis/strategy";
 import {
   getAllFundOverviews,
@@ -9,45 +10,88 @@ import {
 } from "@/lib/services/repository";
 import type { FundBucket, RecommendationItem } from "@/types/domain";
 
-function uniqueByCode(items: RecommendationItem[]) {
-  return items.filter((item, index, array) => array.findIndex((x) => x.code === item.code) === index);
-}
-
-function fallbackTop(
-  primary: RecommendationItem[],
-  source: RecommendationItem[],
-  count: number,
-  bucket: FundBucket
-) {
-  if (primary.length >= count) {
-    return primary.slice(0, count);
+function formatMessageImpact(score: number) {
+  if (score >= 6.5) {
+    return "近期消息面对判断略有加分，但仍需以趋势和回撤为主。";
   }
 
-  const existingCodes = new Set(primary.map((item) => item.code));
-  const supplemented = source
-    .filter((item) => !existingCodes.has(item.code))
-    .slice(0, count - primary.length)
-    .map((item) => ({
-      ...item,
-      bucket
-    }));
+  if (score <= 3.5) {
+    return "近期消息面对判断形成拖累，建议降低操作冲动，先看趋势修复。";
+  }
 
-  return [...primary, ...supplemented];
+  return "近期消息面整体中性，分类主要由趋势、回撤和风险指标决定。";
 }
 
-function buildReasons(item: RecommendationItem, bucket: FundBucket) {
+function classifyBucket(item: Omit<RecommendationItem, "bucket" | "suggestedAction" | "messageImpact">, recent5d: number) {
+  const buyDecision = ["适合买入", "分批买入"].includes(item.decision);
+  const trendStable =
+    item.decision !== "谨慎卖出" &&
+    item.score.trendScore >= 10 &&
+    item.score.riskScore >= 8 &&
+    item.score.drawdownControlScore >= 4;
+  const redZoneReady =
+    buyDecision &&
+    trendStable &&
+    item.score.totalScore >= 74 &&
+    item.score.newsSentimentScore >= 4.5 &&
+    item.score.riskScore >= 14 &&
+    recent5d > -0.04;
+  const batchBuyReady =
+    buyDecision &&
+    item.score.totalScore >= 60 &&
+    item.score.riskScore >= 8 &&
+    item.score.drawdownControlScore >= 4 &&
+    recent5d > -0.08;
+  const highRisk =
+    item.decision === "谨慎卖出" ||
+    item.score.riskScore <= 6 ||
+    item.score.trendScore <= 7 ||
+    item.score.newsSentimentScore <= 3.2;
+
+  if (redZoneReady) {
+    return {
+      bucket: "红色区域：现在适合买" as FundBucket,
+      suggestedAction: "分批买入" as const
+    };
+  }
+
+  if (batchBuyReady) {
+    return {
+      bucket: "适合分批买入" as FundBucket,
+      suggestedAction: "分批买入" as const
+    };
+  }
+
+  if (highRisk) {
+    return {
+      bucket: "谨慎 / 风险偏高" as FundBucket,
+      suggestedAction: "暂不操作" as const
+    };
+  }
+
+  return {
+    bucket: "继续观察" as FundBucket,
+    suggestedAction: item.decision === "持有" ? ("继续持有" as const) : ("继续观察" as const)
+  };
+}
+
+function bucketReasons(item: RecommendationItem) {
   const reasons = [...item.reasons];
 
-  if (bucket === "今日重点观察") {
-    reasons.push("处于重点观察区的原因是回撤进入可分批布局区间，同时长期逻辑未明显恶化。");
+  if (item.bucket === "红色区域：现在适合买") {
+    reasons.unshift("当前更接近可开始分批买入的区间，但仍应拆成多笔执行，不追求一次性重仓。");
   }
 
-  if (bucket === "防守型基金") {
-    reasons.push("该基金更适合作为组合稳定器，不依赖短线情绪博弈。");
+  if (item.bucket === "适合分批买入") {
+    reasons.unshift("已经进入可布局区间，但趋势和风险信号还不足以支持激进操作。");
   }
 
-  if (bucket === "进攻型基金") {
-    reasons.push("进攻型类别强调趋势弹性，但默认只建议卫星仓分批参与。");
+  if (item.bucket === "继续观察") {
+    reasons.unshift("现在的核心动作不是追单，而是等待净值企稳、趋势确认或风险缓解。");
+  }
+
+  if (item.bucket === "谨慎 / 风险偏高") {
+    reasons.unshift("当前不适合轻易加仓，优先关注风险来源是否缓解。");
   }
 
   return reasons.slice(0, 4);
@@ -56,8 +100,8 @@ function buildReasons(item: RecommendationItem, bucket: FundBucket) {
 export function buildRecommendations() {
   const macro = getLatestMacroSnapshot();
   const funds = getAllFundOverviews();
-  const items: RecommendationItem[] = [];
   const asOfDate = new Date().toISOString().slice(0, 10);
+  const items: RecommendationItem[] = [];
 
   for (const overview of funds) {
     const navSeries = getNavSeries(overview.code);
@@ -72,6 +116,11 @@ export function buildRecommendations() {
     ];
 
     const analysis = buildFundAnalysis(overview, navSeries, news, macro);
+    const recent5d = periodReturn(
+      navSeries.map((item) => item.nav),
+      5
+    ) ?? 0;
+
     saveFundScore({
       code: overview.code,
       asOfDate,
@@ -80,150 +129,70 @@ export function buildRecommendations() {
       reasons: analysis.decision.basis
     });
 
-    items.push({
-      bucket: "今日重点观察",
+    const preliminary: Omit<RecommendationItem, "bucket" | "suggestedAction" | "messageImpact"> = {
       code: overview.code,
       name: overview.name,
+      type: overview.type,
       theme: overview.theme,
       score: analysis.score,
       latestNav: overview.latestNav,
       latestNavDate: overview.latestNavDate,
       reasons: analysis.recommendationReasons,
-      decision: analysis.decision.status
-    });
+      riskWarnings:
+        analysis.decision.riskWarnings.length > 0
+          ? analysis.decision.riskWarnings
+          : ["当前未触发额外风险警报，但仍需控制单只主题基金仓位。"],
+      decision: analysis.decision.status,
+      updatedAt: overview.updatedAt
+    };
+
+    const classification = classifyBucket(preliminary, recent5d);
+    const item: RecommendationItem = {
+      ...preliminary,
+      bucket: classification.bucket,
+      suggestedAction: classification.suggestedAction,
+      messageImpact: formatMessageImpact(analysis.score.newsSentimentScore)
+    };
+
+    item.reasons = bucketReasons(item);
+    items.push(item);
   }
 
-  const focus = uniqueByCode(
-    fallbackTop(
-      items
-      .filter(
-        (item) =>
-          item.score.totalScore >= 60 &&
-          item.decision !== "谨慎卖出" &&
-          item.score.drawdownControlScore >= 6
-      )
-      .sort((a, b) => b.score.totalScore - a.score.totalScore)
-      .slice(0, 5)
-      .map((item) => ({
-        ...item,
-        bucket: "今日重点观察" as const,
-        reasons: buildReasons(item, "今日重点观察")
-      })),
-      items
-        .filter((item) => item.decision !== "谨慎卖出")
-        .sort((a, b) => b.score.totalScore - a.score.totalScore),
-      5,
-      "今日重点观察"
-    )
-  );
+  const bucketOrder: FundBucket[] = [
+    "红色区域：现在适合买",
+    "适合分批买入",
+    "继续观察",
+    "谨慎 / 风险偏高"
+  ];
 
-  const trend = uniqueByCode(
-    fallbackTop(
-      items
-      .filter((item) => item.score.trendScore >= 14 && item.score.momentumScore >= 6)
-      .sort(
-        (a, b) =>
-          b.score.trendScore + b.score.momentumScore - (a.score.trendScore + a.score.momentumScore)
-      )
-      .slice(0, 5)
-      .map((item) => ({
-        ...item,
-        bucket: "当前趋势较优" as const,
-        reasons: buildReasons(item, "当前趋势较优")
-      })),
-      items.sort((a, b) => b.score.trendScore + b.score.momentumScore - (a.score.trendScore + a.score.momentumScore)),
-      5,
-      "当前趋势较优"
-    )
-  );
+  const sorted = items.sort((a, b) => {
+    const bucketGap = bucketOrder.indexOf(a.bucket) - bucketOrder.indexOf(b.bucket);
+    if (bucketGap !== 0) {
+      return bucketGap;
+    }
 
-  const longTerm = uniqueByCode(
-    fallbackTop(
-      items
-      .filter(
-        (item) =>
-          item.score.themeScore >= 12 &&
-          item.score.allocationFitScore >= 12 &&
-          item.decision !== "谨慎卖出"
-      )
-      .sort((a, b) => b.score.themeScore + b.score.totalScore - (a.score.themeScore + a.score.totalScore))
-      .slice(0, 6)
-      .map((item) => ({
-        ...item,
-        bucket: "中长期布局方向" as const,
-        reasons: buildReasons(item, "中长期布局方向")
-      })),
-      items.sort((a, b) => b.score.themeScore + b.score.allocationFitScore - (a.score.themeScore + a.score.allocationFitScore)),
-      6,
-      "中长期布局方向"
-    )
-  );
-
-  const defensive = uniqueByCode(
-    fallbackTop(
-      items
-      .filter((item) => ["红利低波", "宽基指数", "全球优质资产"].includes(item.theme))
-      .sort((a, b) => b.score.riskScore + b.score.allocationFitScore - (a.score.riskScore + a.score.allocationFitScore))
-      .slice(0, 5)
-      .map((item) => ({
-        ...item,
-        bucket: "防守型基金" as const,
-        reasons: buildReasons(item, "防守型基金")
-      })),
-      items.sort((a, b) => b.score.riskScore + b.score.allocationFitScore - (a.score.riskScore + a.score.allocationFitScore)),
-      5,
-      "防守型基金"
-    )
-  );
-
-  const offensive = uniqueByCode(
-    fallbackTop(
-      items
-      .filter((item) => ["人工智能", "高端制造", "海外科技", "创新药"].includes(item.theme))
-      .sort((a, b) => b.score.totalScore - a.score.totalScore)
-      .slice(0, 5)
-      .map((item) => ({
-        ...item,
-        bucket: "进攻型基金" as const,
-        reasons: buildReasons(item, "进攻型基金")
-      })),
-      items.sort((a, b) => b.score.totalScore - a.score.totalScore),
-      5,
-      "进攻型基金"
-    )
-  );
-
-  const overseas = uniqueByCode(
-    fallbackTop(
-      items
-      .filter((item) => ["海外科技", "全球优质资产", "海外资产"].includes(item.theme))
-      .sort((a, b) => b.score.totalScore - a.score.totalScore)
-      .slice(0, 5)
-      .map((item) => ({
-        ...item,
-        bucket: "海外配置型基金" as const,
-        reasons: buildReasons(item, "海外配置型基金")
-      })),
-      items.sort((a, b) => b.score.totalScore - a.score.totalScore),
-      5,
-      "海外配置型基金"
-    )
-  );
-
-  const all = [...focus, ...trend, ...longTerm, ...defensive, ...offensive, ...overseas];
+    return b.score.totalScore - a.score.totalScore;
+  });
 
   replaceRecommendations(
     asOfDate,
-    all.map((item) => ({
+    sorted.map((item) => ({
       bucket: item.bucket,
       code: item.code,
       score: item.score.totalScore,
-      reason: JSON.stringify(item.reasons)
+      reason: JSON.stringify({
+        reasons: item.reasons,
+        riskWarnings: item.riskWarnings,
+        suggestedAction: item.suggestedAction,
+        messageImpact: item.messageImpact,
+        type: item.type,
+        updatedAt: item.updatedAt
+      })
     }))
   );
 
   return {
     asOfDate,
-    items: all
+    items: sorted
   };
 }
