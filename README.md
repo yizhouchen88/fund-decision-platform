@@ -128,24 +128,34 @@ docker compose up --build
 
 默认会把数据库挂载到容器卷 `fund-data`，避免 SQLite 数据丢失。
 
-## 9. Render 部署
+## 9. Render 免费部署
 
-仓库中已提供 `render.yaml`。推荐配置：
+仓库中的 [render.yaml](/Users/chenyizhou/Desktop/myproject/render.yaml) 已切换为 Render `free` web service 配置：
 
-- Web Service 使用 Docker
-- 挂载持久化磁盘到 `/data`
-- 设置：
-  - `APP_URL`
-  - `DATABASE_PATH=/data/fund-platform.db`
-  - `ADMIN_REFRESH_SECRET`
-  - `ENABLE_INTERNAL_CRON=true`
-  - `CRON_EXPRESSION=0 */6 * * *`
+- `plan: free`
+- 不使用 persistent disk
+- `DATABASE_PATH=/app/data/fund-platform.db`
+- `ENABLE_INTERNAL_CRON=false`
+
+这意味着：
+
+- 服务可以按 Render 免费 Web Service 方式部署
+- SQLite 数据会跟随镜像一起构建，并在构建阶段执行 `npm run seed`
+- 免费实例的文件系统是临时的，重新部署或休眠后，本地写入的数据不会长期保留
+- 如果需要手动刷新数据，可调用 `/api/admin/refresh`
 
 健康检查接口：
 
 ```bash
 /api/health
 ```
+
+重新部署免费版时，建议：
+
+1. 在 Render 中重新同步 Blueprint
+2. 确认实例计划显示为 `Free`
+3. 确认没有 attached disk
+4. 部署完成后访问首页与 `/api/health`
 
 ## 10. 风险声明
 
