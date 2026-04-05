@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: fund-decision-platform
+    runtime: docker
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /api/health
+    disk:
+      name: fund-platform-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: APP_URL
+        value: https://fund-decision-platform.onrender.com
+      - key: DATABASE_PATH
+        value: /data/fund-platform.db
+      - key: ADMIN_REFRESH_SECRET
+        generateValue: true
+      - key: ENABLE_INTERNAL_CRON
+        value: "true"
+      - key: CRON_EXPRESSION
+        value: "0 */6 * * *"

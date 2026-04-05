@@ -1,0 +1,16 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      APP_URL: http://localhost:3000
+      DATABASE_PATH: /data/fund-platform.db
+      ADMIN_REFRESH_SECRET: change-me
+      ENABLE_INTERNAL_CRON: "true"
+      CRON_EXPRESSION: "0 */6 * * *"
+    volumes:
+      - fund-data:/data
+
+volumes:
+  fund-data:
